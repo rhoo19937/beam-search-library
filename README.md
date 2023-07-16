@@ -25,3 +25,6 @@ tree_beam: 毎回状態をシュミレートするビームサーチ
 
 
 頑張って各々何問かverifyしましたが、普通にバグってるかもしれません。  
+
+
+incremental_beam_multiとtree_beam_multiが何故かMAX_NODESがかなり大きめに設定しないとだめなので、いらないノードを補足しきれていない気がする。  

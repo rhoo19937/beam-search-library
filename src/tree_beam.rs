@@ -217,7 +217,7 @@ impl BeamSearch{
         let mut ret=vec![];
         loop{
             let Node{op,parent,..}=self.nodes[idx as usize];
-            if op==!0{
+            if parent==!0{
                 break;
             }
             ret.push(op);

@@ -87,6 +87,7 @@ impl BeamSearch{
 
         for cand in &self.cands{
             let node=&mut self.nodes[cand.parent as usize];
+            assert_ne!(node.refs,0);
             node.refs-=1;
             let prev=node.track_id;
             

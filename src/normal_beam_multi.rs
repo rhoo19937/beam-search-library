@@ -54,9 +54,9 @@ impl BeamSearch{
         }
     }
     
-    fn enum_cands(&self,input:&Input,cands:&mut Vec<Vec<Cand>>){
+    fn enum_cands(&self,input:&Input,turn:usize,cands:&mut Vec<Vec<Cand>>){
         for i in self.latest..self.nodes.len(){
-            self.append_cands(input,i,cands)
+            self.append_cands(input,turn,i,cands)
         }
     }
     
@@ -80,7 +80,7 @@ impl BeamSearch{
         ret
     }
 
-    fn append_cands(&self,input:&Input,idx:usize,cands:&mut Vec<Vec<Cand>>){
+    fn append_cands(&self,input:&Input,turn:usize,idx:usize,cands:&mut Vec<Vec<Cand>>){
         let node=&self.nodes[idx];
         todo!();
     }
@@ -89,12 +89,13 @@ impl BeamSearch{
         use std::cmp::Reverse;
         let M=MAX_WIDTH;
         
-        let mut cands=(0..TURN).map(|_|Vec::<Cand>::with_capacity(MAX_WIDTH*4)).collect::<Vec<_>>();
+        let mut cands=(0..=TURN).map(|_|Vec::<Cand>::with_capacity(MAX_WIDTH*4)).collect::<Vec<_>>();
         let mut set=rustc_hash::FxHashSet::default();
         for t in 0..TURN{
             if t!=0{
                 let M0=(M as f64*2.).round() as usize;
                 let cands=&mut cands[t];
+                assert!(!cands.is_empty());
                 if cands.len()>M0{
                     cands.select_nth_unstable_by_key(M0,|a|Reverse(a.eval_score));
                     cands.truncate(M0);
@@ -106,9 +107,7 @@ impl BeamSearch{
                     set.insert(cand.hash)
                 ).take(M).cloned());
             }
-            cands.clear();
-            self.enum_cands(input,&mut cands);
-            assert!(!cands.is_empty(),"次の合法手が存在しないよ");
+            self.enum_cands(input,t,&mut cands);
         }
 
         let best=cands.last().unwrap().iter().max_by_key(|a|a.raw_score(input)).unwrap();
