@@ -178,7 +178,7 @@ impl BeamSearch{
     }
 
     fn retarget(&mut self,mut idx:uint){
-        loop{
+        while self.nodes[idx as usize].valid!=self.at{
             self.nodes[idx as usize].valid=self.at;
             if idx as usize==self.cur_node{
                 break;
