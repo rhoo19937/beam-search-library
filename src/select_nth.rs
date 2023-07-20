@@ -1,3 +1,6 @@
+// based on https://doc.rust-lang.org/src/core/slice/mod.rs.html
+
+
 use std::cmp::{self, Ordering, Ordering::*};
 use std::mem::{self, MaybeUninit};
 use std::ptr;
