@@ -252,9 +252,9 @@ impl BeamSearch{
                 
                 cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
                 set.clear();
-                self.update(cands.iter().filter(|cand|
+                self.update(cands.drain(..).filter(|cand|
                     set.insert(cand.hash)
-                ).take(M).cloned());
+                ).take(M));
             }
             
             cands.clear();

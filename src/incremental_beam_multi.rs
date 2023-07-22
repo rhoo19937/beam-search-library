@@ -158,10 +158,10 @@ impl BeamSearch{
                 cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
                 set.clear();
                 let mut total=0;
-                self.update(cands.iter().map(|cand|{
+                self.update(cands.drain(..).map(|cand|{
                     let f=total<M && set.insert(cand.hash);
                     total+=f as usize;
-                    (cand.clone(),f)
+                    (cand,f)
                 }));
             }
             self.enum_cands(input,t,&mut cands);
