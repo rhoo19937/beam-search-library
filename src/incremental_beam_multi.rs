@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-
-
-fn main(){}
-
-
 #[allow(non_camel_case_types)]
 type uint=u16;
 
@@ -41,6 +35,8 @@ impl Cand {
 
 const MAX_WIDTH:usize=1000;
 const TURN:usize=100;
+const MAX_NODES:usize=MAX_WIDTH*TURN;
+
 
 struct BeamSearch{
     track:Vec<(uint,u8)>,
@@ -52,8 +48,8 @@ struct BeamSearch{
 }
 impl BeamSearch{
     fn new(node:Node)->BeamSearch{
-        const MAX_NODES:usize=MAX_WIDTH*TURN;
         assert!(MAX_NODES<uint::MAX as usize);
+
         let mut nodes=vec![Node::default();MAX_WIDTH*5];
         nodes[0]=node;
         let mut next=Vec::with_capacity(MAX_WIDTH);
@@ -67,6 +63,17 @@ impl BeamSearch{
             track:Vec::with_capacity(MAX_NODES),
             cands:Vec::with_capacity(MAX_WIDTH),
         }
+    }
+
+    fn reset(&mut self,node:Node){
+        self.nodes[0]=node;
+        self.at=1;
+        self.next.clear();
+        self.next.push(0);
+        self.free.clear();
+        self.free.extend(0..self.nodes.len());
+        self.track.clear();
+        self.cands.clear();
     }
     
     fn enum_cands(&mut self,input:&Input,turn:usize,cands:&mut Vec<Vec<Cand>>){
@@ -110,10 +117,15 @@ impl BeamSearch{
             else{
                 let mut new=node.new_node(cand);
                 new.refs=0;
-                let idx=self.free[self.at];
+                let idx=if let Some(&idx)=self.free.get(self.at){
+                    self.nodes[idx]=new;
+                    idx
+                } else{
+                    self.free.push(self.at);
+                    self.nodes.push(new);
+                    self.at
+                };
                 self.at+=1;
-                self.next.push(idx);
-                self.nodes[idx]=new;
                 &mut self.nodes[idx]
             };
 
@@ -150,20 +162,23 @@ impl BeamSearch{
                 let M0=(M as f64*2.).round() as usize;
                 let cands=&mut cands[t];
                 assert!(!cands.is_empty());
+                
                 if cands.len()>M0{
                     cands.select_nth_unstable_by_key(M0,|a|Reverse(a.eval_score));
-                    cands.truncate(M0);
                 }
-                
-                cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
+                let len=M0.min(cands.len());
+                cands[..len].sort_unstable_by_key(|a|Reverse(a.eval_score));
+
                 set.clear();
                 let mut total=0;
+
                 self.update(cands.drain(..).map(|cand|{
                     let f=total<M && set.insert(cand.hash);
                     total+=f as usize;
                     (cand,f)
                 }));
             }
+            
             self.enum_cands(input,t,&mut cands);
         }
 
@@ -176,6 +191,3 @@ impl BeamSearch{
         ret
     }
 }
-
-
-struct Input{}

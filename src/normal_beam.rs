@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-
-
-fn main(){}
-
-
 #[allow(non_camel_case_types)]
 type uint=u16;
 
@@ -26,7 +20,7 @@ struct Cand{
     eval_score:i64,
     hash:u64,
 }
-impl Cand {
+impl Cand{
     fn raw_score(&self,input:&Input)->i64{
         todo!();
     }
@@ -35,6 +29,8 @@ impl Cand {
 
 const MAX_WIDTH:usize=1000;
 const TURN:usize=100;
+const MAX_NODES:usize=MAX_WIDTH*TURN;
+
 
 struct BeamSearch{
     track:Vec<(uint,u8)>,
@@ -43,8 +39,8 @@ struct BeamSearch{
 }
 impl BeamSearch{
     fn new(node:Node)->BeamSearch{
-        const MAX_NODES:usize=MAX_WIDTH*TURN;
         assert!(MAX_NODES<uint::MAX as usize,"MAX_NODEが足りないからuintのサイズを大きくしてね");
+        
         let mut nodes=Vec::with_capacity(MAX_WIDTH);
         nodes.push(node);
         
@@ -54,6 +50,13 @@ impl BeamSearch{
             next_nodes:Vec::with_capacity(MAX_WIDTH),
         }
     }
+
+    fn reset(&mut self,node:Node){
+        self.nodes.clear();
+        self.nodes.push(node);
+        self.track.clear();
+        self.next_nodes.clear();
+    }
     
     fn enum_cands(&self,input:&Input,cands:&mut Vec<Cand>){
         for i in 0..self.nodes.len(){
@@ -61,11 +64,13 @@ impl BeamSearch{
         }
     }
     
-    fn update<I:Iterator<Item=Cand>>(&mut self,cands:I){
+    fn update(&mut self,cands:impl Iterator<Item=Cand>){
         self.next_nodes.clear();
+
         for cand in cands{
             let node=&self.nodes[cand.parent as usize];
             let mut new=node.new_node(&cand);
+            
             self.track.push((node.track_id,cand.op));
             new.track_id=self.track.len() as uint-1;
             self.next_nodes.push(new);
@@ -106,11 +111,14 @@ impl BeamSearch{
                 
                 cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
                 set.clear();
+
                 self.update(cands.drain(..).filter(|cand|
                     set.insert(cand.hash)
                 ).take(M));
             }
+
             cands.clear();
+
             self.enum_cands(input, &mut cands);
             assert!(!cands.is_empty(),"次の合法手が存在しないよ");
         }
@@ -124,6 +132,3 @@ impl BeamSearch{
         ret
     }
 }
-
-
-struct Input{}

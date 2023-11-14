@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-
-
-fn main(){}
-
-
 #[allow(non_camel_case_types)]
 type uint=u16;
 
@@ -36,6 +30,8 @@ impl Cand{
 
 const MAX_WIDTH:usize=1000;
 const TURN:usize=100;
+const MAX_NODES:usize=MAX_WIDTH*TURN;
+
 
 struct BeamSearch{
     latest:usize,
@@ -43,7 +39,6 @@ struct BeamSearch{
 }
 impl BeamSearch{
     fn new(node:Node)->BeamSearch{
-        const MAX_NODES:usize=MAX_WIDTH*TURN;
         assert!(MAX_NODES<uint::MAX as usize,"MAX_NODEが足りないからuintのサイズを大きくしてね");
         let mut nodes=Vec::with_capacity(MAX_NODES);
         nodes.push(node);
@@ -52,6 +47,12 @@ impl BeamSearch{
             latest:0,
             nodes,
         }
+    }
+
+    fn reset(&mut self,node:Node){
+        self.nodes.clear();
+        self.nodes.push(node);
+        self.latest=0;
     }
     
     fn enum_cands(&self,input:&Input,turn:usize,cands:&mut Vec<Vec<Cand>>){
@@ -72,10 +73,12 @@ impl BeamSearch{
     
     fn restore(&self,mut idx:uint)->Vec<u8>{
         let mut ret=vec![];
+
         while idx!=!0{
             ret.push(self.nodes[idx as usize].op);
             idx=self.nodes[idx as usize].parent;
         }
+        
         ret.reverse();
         ret
     }
@@ -100,8 +103,8 @@ impl BeamSearch{
                     cands.select_nth_unstable_by_key(M0,|a|Reverse(a.eval_score));
                     cands.truncate(M0);
                 }
-                
                 cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
+
                 set.clear();
                 self.update(cands.drain(..).filter(|cand|
                     set.insert(cand.hash)
@@ -119,6 +122,3 @@ impl BeamSearch{
         ret
     }
 }
-
-
-struct Input{}

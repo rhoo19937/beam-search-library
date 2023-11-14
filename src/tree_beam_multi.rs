@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-
-
-fn main(){}
-
-
 #[allow(non_camel_case_types)]
 type uint=u16;
 
@@ -65,6 +59,8 @@ struct Node{
 
 const MAX_WIDTH:usize=1000;
 const TURN:usize=100;
+const MAX_NODES:usize=MAX_WIDTH*10;
+
 
 struct BeamSearch{
     state:State,
@@ -76,11 +72,11 @@ struct BeamSearch{
 }
 impl BeamSearch{
     fn new(state:State,node:Node)->BeamSearch{
-        const MAX_NODES:usize=MAX_WIDTH*5;
         assert!(MAX_NODES<uint::MAX as usize,"uintのサイズが足りないよ");
+        
         let mut nodes=vec![Node::default();MAX_NODES];
         nodes[0]=node;
-        let free=(1..MAX_NODES as uint).rev().collect();
+        let free=(1..nodes.len() as uint).rev().collect();
 
         BeamSearch{
             state,nodes,free,
@@ -89,25 +85,47 @@ impl BeamSearch{
             at:0,
         }
     }
+
+    fn reset(&mut self,state:State,node:Node){
+        self.state=state;
+        self.nodes[0]=node;
+        self.free.clear();
+        self.free.extend((1..self.nodes.len() as uint).rev());
+        self.que.clear();
+        self.cur_node=0;
+    }
     
     fn add_node(&mut self,cand:Cand){
         let next=self.nodes[cand.parent as usize].child;
-        let new=self.free.pop().expect("MAX_NODEが足りないよ") as uint;
+        
+        let new=if let Some(n)=self.free.pop(){
+            self.nodes[n as usize]=Node{next,..cand.to_node()};
+            n
+        } else{
+            let n=self.nodes.len() as uint;
+            assert!(n!=0,"uintのサイズが足りないよ");
+            self.nodes.push(Node{next,..cand.to_node()});
+            n
+        };
+
         if next!=!0{
             self.nodes[next as usize].prev=new;
         }
         self.nodes[cand.parent as usize].child=new;
         
-        self.nodes[new as usize]=Node{next,..cand.to_node()};
         self.retarget(new);
     }
 
     fn del_node(&mut self,mut idx:uint){
-        assert_eq!(self.nodes[idx as usize].refs,0);
+        assert!(self.nodes[idx as usize].refs==0);
+
         loop{
             self.free.push(idx);
             let Node{prev,next,parent,..}=self.nodes[idx as usize];
             assert_ne!(parent,!0,"全てのノードを消そうとしています");
+
+            self.nodes[parent as usize].refs-=1;
+
             if prev&next==!0 && self.nodes[parent as usize].refs==0{
                 idx=parent;
                 continue;
@@ -115,10 +133,10 @@ impl BeamSearch{
 
             if prev!=!0{
                 self.nodes[prev as usize].next=next;
-            }
-            else{
+            } else{
                 self.nodes[parent as usize].child=next;
             }
+
             if next!=!0{
                 self.nodes[next as usize].prev=prev;
             }
@@ -152,7 +170,6 @@ impl BeamSearch{
                 }
                 child=self.nodes[child as usize].next;
             }
-            
             
             self.cur_node=child as usize;
             self.state.apply(&self.nodes[child as usize]);
@@ -195,23 +212,26 @@ impl BeamSearch{
         
         for (cand,f) in cands{
             let node=&mut self.nodes[cand.parent as usize];
-            node.refs-=1;
             if f{
                 self.add_node(cand);
-            }
-            else if node.refs==0 && node.child==!0{
-                self.del_node(cand.parent);
+            } else{
+                node.refs-=1;
+                if node.refs==0{
+                    self.del_node(cand.parent);
+                }
             }
         }
     }
 
     fn restore(&self,mut idx:usize)->Vec<u8>{
         let mut ret=vec![];
+
         loop{
             let Node{op,parent,..}=self.nodes[idx];
             if parent==!0{
                 break;
             }
+
             ret.push(op);
             idx=parent as usize;
         }
@@ -235,19 +255,24 @@ impl BeamSearch{
     
         let mut cands=(0..=TURN).map(|_|Vec::<Cand>::with_capacity(MAX_WIDTH*4)).collect::<Vec<_>>();
         let mut set=rustc_hash::FxHashSet::default();
-        for t in 0..TURN{
-            if t!=0{
+
+        for turn in 0..TURN{
+            if turn!=0{
                 let M0=(M as f64*2.).round() as usize;
-                let cands=&mut cands[t];
+
+                let cands=&mut cands[turn];
                 assert!(!cands.is_empty());
+
                 if cands.len()>M0{
                     cands.select_nth_unstable_by_key(M0,|a|Reverse(a.eval_score));
-                    cands.truncate(M0);
                 }
-                
-                cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
+
+                let len=M0.min(cands.len());
+                cands[..len].sort_unstable_by_key(|a|Reverse(a.eval_score));
+
                 set.clear();
                 let mut total=0;
+
                 self.update(cands.drain(..).map(|cand|{
                     let f=total<M && set.insert(cand.hash);
                     total+=f as usize;
@@ -255,17 +280,15 @@ impl BeamSearch{
                 }));
             }
             
-            self.enum_cands(input,t,&mut cands);
+            self.enum_cands(input,turn,&mut cands);
         }
     
         let best=cands.last().unwrap().iter().max_by_key(|a|a.raw_score(input)).unwrap();
         eprintln!("score = {}",best.raw_score(input));
+
         let mut ret=self.restore(best.parent as usize);
         ret.push(best.op);
     
         ret
     }
 }
-
-
-struct Input{}

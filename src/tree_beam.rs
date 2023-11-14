@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-
-
-fn main(){}
-
-
 #[allow(non_camel_case_types)]
 type uint=u16;
 
@@ -61,6 +55,8 @@ struct Node{
 
 const MAX_WIDTH:usize=1000;
 const TURN:usize=100;
+const MAX_NODES:usize=MAX_WIDTH*5;
+
 
 struct BeamSearch{
     state:State,
@@ -72,15 +68,15 @@ struct BeamSearch{
 }
 impl BeamSearch{
     fn new(state:State,node:Node)->BeamSearch{
-        const MAX_NODES:usize=MAX_WIDTH*5;
         assert!(MAX_NODES<uint::MAX as usize,"uintのサイズが足りないよ");
+
         let mut nodes=vec![Node::default();MAX_NODES];
         nodes[0]=node;
 
         let mut leaf=Vec::with_capacity(MAX_WIDTH);
         leaf.push(0);
         let next_leaf=Vec::with_capacity(MAX_WIDTH);
-        let free=(1..MAX_NODES as uint).rev().collect();
+        let free=(1..nodes.len() as uint).rev().collect();
 
         BeamSearch{
             state,nodes,free,
@@ -88,17 +84,37 @@ impl BeamSearch{
             cur_node:0,
         }
     }
+
+    fn reset(&mut self,state:State,node:Node){
+        self.state=state;
+        self.nodes[0]=node;
+        self.leaf.clear();
+        self.leaf.push(0);
+        self.next_leaf.clear();
+        self.free.clear();
+        self.free.extend((1..self.nodes.len() as uint).rev());
+        self.cur_node=0;
+    }
     
     fn add_node(&mut self,cand:Cand){
         let next=self.nodes[cand.parent as usize].child;
-        let new=self.free.pop().expect("MAX_NODEが足りないよ") as uint;
+        
+        let new=if let Some(n)=self.free.pop(){
+            self.nodes[n as usize]=Node{next,..cand.to_node()};
+            n
+        } else{
+            let n=self.nodes.len() as uint;
+            assert!(n!=0,"uintのサイズが足りないよ");
+            self.nodes.push(Node{next,..cand.to_node()});
+            n
+        };
+
         if next!=!0{
             self.nodes[next as usize].prev=new;
         }
         self.nodes[cand.parent as usize].child=new;
         
         self.next_leaf.push(new);
-        self.nodes[new as usize]=Node{next,..cand.to_node()};
     }
 
     fn del_node(&mut self,mut idx:uint){
@@ -106,6 +122,7 @@ impl BeamSearch{
             self.free.push(idx);
             let Node{prev,next,parent,..}=self.nodes[idx as usize];
             assert_ne!(parent,!0,"全てのノードを消そうとしています");
+
             if prev&next==!0{
                 idx=parent;
                 continue;
@@ -197,7 +214,7 @@ impl BeamSearch{
         self.no_dfs(input,cands);
     }
 
-    fn update<I:Iterator<Item=Cand>>(&mut self,cands:I){
+    fn update(&mut self,cands:impl Iterator<Item=Cand>){
         self.next_leaf.clear();
         for cand in cands{
             self.add_node(cand);
@@ -252,6 +269,7 @@ impl BeamSearch{
                 
                 cands.sort_unstable_by_key(|a|Reverse(a.eval_score));
                 set.clear();
+
                 self.update(cands.drain(..).filter(|cand|
                     set.insert(cand.hash)
                 ).take(M));
@@ -264,12 +282,10 @@ impl BeamSearch{
     
         let best=cands.into_iter().max_by_key(|a|a.raw_score(input)).unwrap();
         eprintln!("score = {}",best.raw_score(input));
+        
         let mut ret=self.restore(best.parent);
         ret.push(best.op);
     
         ret
     }
 }
-
-
-struct Input{}

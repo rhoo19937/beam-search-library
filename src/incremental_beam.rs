@@ -1,9 +1,3 @@
-#![allow(non_snake_case)]
-
-
-fn main(){}
-
-
 #[allow(non_camel_case_types)]
 type uint=u16;
 
@@ -13,7 +7,7 @@ struct Node{
     track_id:uint,
     refs:u8,
 }
-impl Node {
+impl Node{
     fn new_node(&self,cand:&Cand)->Node{
         todo!();
     }
@@ -31,7 +25,7 @@ struct Cand{
     eval_score:i64,
     hash:u64,
 }
-impl Cand {
+impl Cand{
     fn raw_score(&self,input:&Input)->i64{
         todo!();
     }
@@ -40,6 +34,8 @@ impl Cand {
 
 const MAX_WIDTH:usize=1000;
 const TURN:usize=100;
+const MAX_NODES:usize=MAX_WIDTH*TURN;
+
 
 
 struct BeamSearch{
@@ -50,8 +46,7 @@ struct BeamSearch{
     cands:Vec<Cand>,
 }
 impl BeamSearch{
-    fn new(node:Node)->BeamSearch{
-        const MAX_NODES:usize=MAX_WIDTH*TURN;
+    fn new(node:Node)->Self{
         assert!(MAX_NODES<uint::MAX as usize);
         let mut nodes=vec![Node::default();MAX_WIDTH*2];
         nodes[0]=node;
@@ -64,6 +59,15 @@ impl BeamSearch{
             cands:Vec::with_capacity(MAX_WIDTH),
         }
     }
+
+    fn reset(&mut self,node:Node){
+        self.nodes[0]=node;
+        self.at=1;
+        self.free.clear();
+        self.free.extend(0..self.nodes.len());
+        self.track.clear();
+        self.cands.clear();
+    }
     
     fn enum_cands(&self,input:&Input,cands:&mut Vec<Cand>){
         for &i in &self.free[..self.at]{
@@ -71,7 +75,7 @@ impl BeamSearch{
         }
     }
     
-    fn update<I:Iterator<Item=Cand>>(&mut self,cands:I){
+    fn update(&mut self,cands:impl Iterator<Item=Cand>){
         self.cands.clear();
         for cand in cands{
             self.nodes[cand.parent as usize].refs+=1;
@@ -98,9 +102,15 @@ impl BeamSearch{
             else{
                 let mut new=node.new_node(cand);
                 new.refs=0;
-                let idx=self.free[self.at];
+                let idx=if let Some(&idx)=self.free.get(self.at){
+                    self.nodes[idx]=new;
+                    idx
+                } else{
+                    self.free.push(self.at);
+                    self.nodes.push(new);
+                    self.at
+                };
                 self.at+=1;
-                self.nodes[idx]=new;
                 &mut self.nodes[idx]
             };
 
@@ -158,6 +168,3 @@ impl BeamSearch{
         ret
     }
 }
-
-
-struct Input{}
