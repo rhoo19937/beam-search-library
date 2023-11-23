@@ -85,9 +85,11 @@ impl BeamSearch{
             at:0,
         }
     }
-
-    fn reset(&mut self,state:State,node:Node){
+    
+    fn reset(&mut self,state:State,mut node:Node){
         self.state=state;
+        self.at+=1;
+        node.valid=self.at;
         self.nodes[0]=node;
         self.free.clear();
         self.free.extend((1..self.nodes.len() as uint).rev());
@@ -161,14 +163,11 @@ impl BeamSearch{
 
         // let prev_state=self.state.clone();
         'a: loop{
-            loop{
+            while self.nodes[child as usize].valid!=self.at{
+                child=self.nodes[child as usize].next;
                 if child==!0{
                     break 'a;
                 }
-                else if self.nodes[child as usize].valid==self.at{
-                    break;
-                }
-                child=self.nodes[child as usize].next;
             }
             
             self.cur_node=child as usize;
@@ -181,17 +180,76 @@ impl BeamSearch{
             }
 
             child=self.nodes[child as usize].next;
+            if child==!0{
+                break;
+            }
         }
         
         if !next_single{
             self.cur_node=node;
         }
     }
+    
+    fn no_dfs(&mut self,input:&Input,turn:usize,cands:&mut Vec<Vec<Cand>>){
+        loop{
+            let Node{next,child,..}=self.nodes[self.cur_node];
+            if next==!0 || child==!0{
+                break;
+            }
+            self.cur_node=child as usize;
+            self.state.apply(&self.nodes[self.cur_node]);
+        }
+
+        assert!(self.nodes[self.cur_node].valid==self.at);
+        let root=self.cur_node;
+
+        loop{
+            assert!(self.nodes[self.cur_node].valid==self.at);
+            let mut child=self.nodes[self.cur_node].child;
+
+            if child==!0{
+                let cnt=self.append_cands(input,turn,self.cur_node,cands);
+                if cnt==0{
+                    self.que.push(self.cur_node as uint);
+                }
+                self.nodes[self.cur_node].refs+=cnt;
+
+                'a: loop{
+                    if self.cur_node==root{
+                        return;
+                    }
+                    let node=&self.nodes[self.cur_node];
+                    self.state.revert(&node);
+                    let mut next=node.next;
+                    loop{
+                        if next==!0{
+                            self.cur_node=node.parent as usize;
+                            break;
+                        }
+                        if self.nodes[next as usize].valid==self.at{
+                            self.cur_node=next as usize;
+                            self.state.apply(&self.nodes[self.cur_node]);
+                            break 'a;
+                        }
+                        next=self.nodes[next as usize].next;
+                    }
+                }
+            }
+            else{
+                while self.nodes[child as usize].valid!=self.at{
+                    child=self.nodes[child as usize].next;
+                }
+                self.cur_node=child as usize;
+                self.state.apply(&self.nodes[self.cur_node]);
+            }
+        }
+    }
 
     fn enum_cands(&mut self,input:&Input,turn:usize,cands:&mut Vec<Vec<Cand>>){
         assert_eq!(self.nodes[self.cur_node].valid,self.at);
         self.que.clear();
-        self.dfs(input,turn,cands,true);
+        // self.dfs(input,turn,cands,true);
+        self.no_dfs(input,turn,cands);
     }
 
     fn retarget(&mut self,mut idx:uint){
